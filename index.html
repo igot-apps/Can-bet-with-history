@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -213,7 +212,7 @@
                 const instanceHTML = `
                     <div class="wrapper" id="${id}">
                         <h3>${id} Instance</h3>
-                        <div>Units: <span id="units">${units.join(", ")}</span></div>
+                        <div>Units: <span id="units">${units.map(u => u.toFixed(2)).join(", ")}</span></div>
                         <div>Next Stake Amount: <span id="next-stake-amount">${nextStake.toFixed(2)}</span></div>
                         <div>Overall Profit: <span>${overAllProfit.toFixed(2)}</span></div>
                         
@@ -224,7 +223,7 @@
                         
                         <div class="form-element">
                             <label>Set Initial Units (comma-separated):</label>
-                            <input class="initial-units" type="text" value="${units.join(",")}" />
+                            <input class="initial-units" type="text" value="${units.map(u => u.toFixed(2)).join(",")}" />
                         </div>
                         
                         <button onclick="setInitialValues('${id}')">Set Initial Values</button>
@@ -253,4 +252,3 @@
     </script>
 </body>
 </html>
-
