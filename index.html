@@ -1,28 +1,41 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Multiple BetSlip Instances</title>
+    <title>Enhanced Bet Slip App</title>
     <style>
-        * { text-align: center; }
-        .wrapper { width: 300px; margin: 20px auto; border: 1px solid #ccc; padding: 10px; border-radius: 10px; }
+        * { text-align: center; box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { background-color: #f4f4f4; }
+        .wrapper { width: 300px; margin: 20px auto; border: 1px solid #ccc; padding: 20px; border-radius: 15px; background-color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s ease; }
+        .wrapper:hover { transform: scale(1.03); }
+        h3 { font-size: 1.5rem; margin-bottom: 10px; color: #333; }
         #units, #next-stake-amount { color: steelblue; }
         #units { font-size: 2rem; }
         #next-stake-amount { font-size: 1.3rem; }
         table { width: 100%; margin-bottom: 10px; text-align: center; }
         .form-element { margin-bottom: 10px; }
-        #outcome-btns button { margin: 5px; padding: 10px; border-radius: 5%; }
+        #outcome-btns button { margin: 5px; padding: 10px; border-radius: 10px; transition: background-color 0.3s ease; cursor: pointer; }
         #won-btn { background: rgb(13, 106, 13); color: white; }
+        #won-btn:hover { background: rgb(8, 82, 8); }
         #lost-btn { background: rgb(213, 85, 85); color: white; }
-        .hide { display: none; }
-        .delete-btn { background: crimson; color: white; padding: 5px 10px; border: none; border-radius: 5px; cursor: pointer; }
-        .history { text-align: left; margin-top: 10px; }
+        #lost-btn:hover { background: rgb(184, 50, 50); }
+        .delete-btn { background: crimson; color: white; padding: 5px 15px; border: none; border-radius: 10px; cursor: pointer; margin-bottom: 10px; transition: background-color 0.3s ease; }
+        .delete-btn:hover { background-color: darkred; }
+        .history { text-align: left; margin-top: 20px; display: none; } /* Initially hidden */
+        .bet-item { padding: 10px; margin-bottom: 10px; border-radius: 8px; }
+        .bet-item.won { background-color: #dff0d8; border-left: 5px solid #3c763d; }
+        .bet-item.lost { background-color: #f2dede; border-left: 5px solid #a94442; }
+        .bet-item p { margin: 0; font-size: 0.9rem; }
+        .form-element input { padding: 8px; width: 80%; font-size: 1rem; border-radius: 5px; border: 1px solid #ddd; }
+        .wrapper button { padding: 10px 20px; font-size: 1rem; margin-top: 10px; cursor: pointer; transition: background-color 0.3s ease; }
+        .wrapper button:hover { background-color: #444; color: white; }
     </style>
 </head>
 <body>
 
-    <h2>Bet Slip App Instances</h2>
+    <h2>Enhanced Bet Slip App Instances</h2>
     <input id="instance-name" type="text" placeholder="Enter instance name" />
     <button onclick="promptInstanceName()">Create New Instance</button>
 
@@ -31,18 +44,15 @@
     <script>
         let instances = [];
 
-        // Load saved instances from localStorage
         function loadInstancesFromLocalStorage() {
             const savedInstances = localStorage.getItem('betSlipInstances');
             return savedInstances ? JSON.parse(savedInstances) : [];
         }
 
-        // Save instances to localStorage
         function saveInstancesToLocalStorage() {
             localStorage.setItem('betSlipInstances', JSON.stringify(instances));
         }
 
-        // Prompt for instance name
         function promptInstanceName() {
             const instanceName = document.getElementById('instance-name').value.trim();
             if (!instanceName) {
@@ -52,34 +62,21 @@
             createNewInstance(instanceName);
         }
 
-        // Create a new instance with the provided name
         function createNewInstance(instanceName) {
-            const instanceId = instanceName;  // Use the name as the ID
-            const instanceData = loadSavedData();  // Default data for each new instance
+            const instanceId = instanceName;
+            const instanceData = loadSavedData();
 
-            // Push the new instance with its unique name and data
             instances.push({ id: instanceId, data: instanceData });
-
-            // Save the updated instances to localStorage
             saveInstancesToLocalStorage();
-
-            // Render all instances
             renderInstances();
         }
 
-        // Delete an instance
         function deleteInstance(instanceId) {
-            // Filter out the instance with the matching ID
             instances = instances.filter(instance => instance.id !== instanceId);
-
-            // Save the updated instances to localStorage
             saveInstancesToLocalStorage();
-
-            // Re-render the updated instances list
             renderInstances();
         }
 
-        // Load default instance data
         function loadSavedData() {
             return {
                 odd: 2,
@@ -94,19 +91,19 @@
             };
         }
 
-        // Calculate next stake amount
         function calculateNextStake(units, odd) {
             let { first, last } = getFirstAndLastUnits(units);
             return (first + last) / (odd - 1);
         }
 
-        // Handle bet outcome
         function handleOutcome(instanceId, outcome) {
             const instance = instances.find(inst => inst.id === instanceId);
             const { units, stakedBet, wonBetSlips, lostBetSlips, odd } = instance.data;
 
             if (!stakedBet.stakedAmount) return alert("No bet staked");
 
+            const currentTimestamp = new Date().toLocaleString();
+            stakedBet.timestamp = currentTimestamp;
             stakedBet.outcome = outcome;
 
             if (outcome === "won") {
@@ -123,13 +120,10 @@
             instance.data.overAllProfit = calculateProfit(instance.data);
             instance.data.nextStake = calculateNextStake(units, odd);
 
-            // Save to localStorage
             saveInstancesToLocalStorage();
-
             renderInstances();
         }
 
-        // Stake a bet
         function stakeBet(instanceId) {
             const instance = instances.find(inst => inst.id === instanceId);
             const { odd, units } = instance.data;
@@ -137,33 +131,28 @@
             instance.data.stakedBet = {
                 stakedAmount: calculateNextStake(units, odd),
                 odd,
-                outcome: "pending"
+                outcome: "pending",
+                timestamp: new Date().toLocaleString()
             };
 
-            // Save to localStorage
             saveInstancesToLocalStorage();
-
             renderInstances();
         }
 
-        // Calculate total profit
         function calculateProfit(data) {
             const totalStaked = sumStakes(data.wonBetSlips) + sumStakes(data.lostBetSlips);
             const wonAmount = sumStakes(data.wonBetSlips) * data.odd;
             return wonAmount - totalStaked;
         }
 
-        // Sum staked amounts
         function sumStakes(bets) {
             return bets.reduce((sum, bet) => sum + bet.stakedAmount, 0);
         }
 
-        // Get the first and last units
         function getFirstAndLastUnits(arr) {
             return { first: arr[0] || 0, last: arr[arr.length - 1] || 0 };
         }
 
-        // Set initial values
         function setInitialValues(instanceId) {
             const instance = instances.find(inst => inst.id === instanceId);
             const initialUnitsInput = document.querySelector(`#${instanceId} .initial-units`);
@@ -174,80 +163,82 @@
             instance.data.odd = parseFloat(initialOddInput.value) || 2;
             instance.data.nextStake = calculateNextStake(instance.data.units, instance.data.odd);
 
-            // Save to localStorage
             saveInstancesToLocalStorage();
-
             renderInstances();
         }
 
-        // Reset the app to default values
         function resetApp(instanceId) {
             const instance = instances.find(inst => inst.id === instanceId);
             instance.data = loadSavedData();
 
-            // Save to localStorage
             saveInstancesToLocalStorage();
-
             renderInstances();
         }
 
-        // Show history of bets for an instance
         function showHistory(instanceId) {
+            const historyDiv = document.getElementById(`history-${instanceId}`);
+            const isHidden = historyDiv.style.display === "none";
+
+            if (isHidden) {
+                renderHistory(instanceId);
+                historyDiv.style.display = "block";
+            } else {
+                historyDiv.style.display = "none";
+            }
+        }
+
+        function renderHistory(instanceId) {
             const instance = instances.find(inst => inst.id === instanceId);
             const historyDiv = document.getElementById(`history-${instanceId}`);
-            const { expiredBetSlips, wonBetSlips, lostBetSlips } = instance.data;
+            const { expiredBetSlips } = instance.data;
 
             let historyHTML = `<h4>History for Instance: ${instanceId}</h4>`;
-            historyHTML += `<h5>Expired Bets:</h5><ul>`;
-            expiredBetSlips.forEach(bet => historyHTML += `<li>Stake: ${bet.stakedAmount}, Outcome: ${bet.outcome}</li>`);
-            historyHTML += `</ul>`;
-
-            historyHTML += `<h5>Won Bets:</h5><ul>`;
-            wonBetSlips.forEach(bet => historyHTML += `<li>Stake: ${bet.stakedAmount}, Odd: ${bet.odd}</li>`);
-            historyHTML += `</ul>`;
-
-            historyHTML += `<h5>Lost Bets:</h5><ul>`;
-            lostBetSlips.forEach(bet => historyHTML += `<li>Stake: ${bet.stakedAmount}, Odd: ${bet.odd}</li>`);
-            historyHTML += `</ul>`;
+            historyHTML += `<h5>Expired Bets:</h5>`;
+            expiredBetSlips.forEach(bet => {
+                const outcomeClass = bet.outcome === "won" ? "won" : "lost";
+                historyHTML += `<div class="bet-item ${outcomeClass}"><p>Amount: ${bet.stakedAmount.toFixed(2)}, Outcome: ${bet.outcome}, Time: ${bet.timestamp}</p></div>`;
+            });
 
             historyDiv.innerHTML = historyHTML;
         }
 
-        // Render all instances
         function renderInstances() {
             const container = document.getElementById('instances-container');
-            container.innerHTML = '';  // Clear previous instances
+            container.innerHTML = '';
 
-            instances.forEach(({ id, data }) => {
+            instances.forEach(instance => {
+                const { id, data } = instance;
                 const { units, nextStake, overAllProfit, odd } = data;
 
                 const instanceHTML = `
                     <div class="wrapper" id="${id}">
-                        <h3>Instance: ${id}</h3>
-                        <button class="delete-btn" onclick="deleteInstance('${id}')">Delete Instance</button>
+                        <h3>${id} Instance</h3>
+                        <div>Units: <span id="units">${units.join(", ")}</span></div>
+                        <div>Next Stake Amount: <span id="next-stake-amount">${nextStake.toFixed(2)}</span></div>
+                        <div>Overall Profit: <span>${overAllProfit.toFixed(2)}</span></div>
                         
-                        <div>Odd: <span>${odd}</span></div>
-                        <div>Units: <span>${units.join(', ')}</span></div>
-                        <div>Next Stake: <span id="next-stake-amount">${nextStake.toFixed(2)}</span></div>
-                        <div>Overall Profit: <span id="units">${overAllProfit.toFixed(2)}</span></div>
-
-                        <input type="text" class="initial-units" placeholder="Enter units separated by commas" />
-                        <input type="number" step="0.1" min="1" class="initial-odd" placeholder="Enter odd" />
-                        <button onclick="setInitialValues('${id}')">Set Initial Values</button>
-
-                        <div>
-                            <h4>Bet Slip</h4>
-                            <button onclick="stakeBet('${id}')">Stake Bet</button>
-                            <div id="outcome-btns">
-                                <button id="won-btn" onclick="handleOutcome('${id}', 'won')">Won</button>
-                                <button id="lost-btn" onclick="handleOutcome('${id}', 'lost')">Lost</button>
-                            </div>
+                        <div class="form-element">
+                            <label>Set Odd:</label>
+                            <input class="initial-odd" type="number" value="${odd}" />
                         </div>
-
-                        <button onclick="resetApp('${id}')">Reset</button>
-                        <button onclick="showHistory('${id}')">Show History</button>
+                        
+                        <div class="form-element">
+                            <label>Set Initial Units (comma-separated):</label>
+                            <input class="initial-units" type="text" value="${units.join(",")}" />
+                        </div>
+                        
+                        <button onclick="setInitialValues('${id}')">Set Initial Values</button>
+                        <button onclick="resetApp('${id}')">Reset App</button>
+                        
+                        <div id="outcome-btns">
+                            <button id="won-btn" onclick="handleOutcome('${id}', 'won')">Won</button>
+                            <button id="lost-btn" onclick="handleOutcome('${id}', 'lost')">Lost</button>
+                        </div>
+                        
+                        <button onclick="stakeBet('${id}')">Stake Bet</button>
 
                         <div id="history-${id}" class="history"></div>
+                        <button onclick="showHistory('${id}')">Show History</button>
                     </div>
                 `;
 
@@ -255,11 +246,11 @@
             });
         }
 
-        // Load and render instances on page load
-        window.onload = function () {
+        document.addEventListener('DOMContentLoaded', () => {
             instances = loadInstancesFromLocalStorage();
             renderInstances();
-        };
+        });
     </script>
 </body>
 </html>
+
