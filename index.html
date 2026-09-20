@@ -1,271 +1,705 @@
 
 <!DOCTYPE html>
 <html lang="en">
-   <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
-      <title>Enhanced Bet Slip App</title>
-      <style>
-         * { text-align: center; box-sizing: border-box; font-family: Arial, sans-serif; }
-         body { background-color: #f4f4f4; }
-         .wrapper { width: 300px; margin: 20px auto; border: 1px solid #ccc; padding: 20px; border-radius: 15px; background-color: white; box-shadow: 0 5px 15px rgba(0,0,0,0.1); transition: transform 0.3s ease; }
-         .wrapper:hover { transform: scale(1.03); }
-         h3 { font-size: 1.5rem; margin-bottom: 10px; color: #333; }
-         #units, #next-stake-amount { color: steelblue; }
-         #units { font-size: 2rem; }
-         #next-stake-amount { font-size: 1.3rem; }
-         table { width: 100%; margin-bottom: 10px; text-align: center; }
-         .form-element { margin-bottom: 10px; }
-         #outcome-btns button { margin: 5px; padding: 10px; border-radius: 10px; transition: background-color 0.3s ease; cursor: pointer; }
-         #won-btn { background: rgb(13, 106, 13); color: white; }
-         #won-btn:hover { background: rgb(8, 82, 8); }
-         #lost-btn { background: rgb(213, 85, 85); color: white; }
-         #lost-btn:hover { background: rgb(184, 50, 50); }
-         .delete-icon {
-         cursor: pointer;
-         color: crimson;
-         transition: color 0.3s ease;
-         }
-         .delete-icon:hover {
-         color: darkred;
-         }
-         .history { text-align: left; margin-top: 20px; display: none; } /* Initially hidden */
-         .bet-item { padding: 10px; margin-bottom: 10px; border-radius: 8px; }
-         .bet-item.won { background-color: #dff0d8; border-left: 5px solid #3c763d; }
-         .bet-item.lost { background-color: #f2dede; border-left: 5px solid #a94442; }
-         .bet-item p { margin: 0; font-size: 0.9rem; }
-         .form-element input { padding: 8px; width: 80%; font-size: 1rem; border-radius: 5px; border: 1px solid #ddd; }
-         .wrapper button { padding: 10px 20px; font-size: 1rem; margin-top: 10px; cursor: pointer; transition: background-color 0.3s ease; }
-         .wrapper button:hover { background-color: #444; color: white; }
-      </style>
-      <style>
-        #next-stake-amount {
-    font-size: 1.3rem;
-    color: green; /* Ensure it always displays in green */
-    font-weight: bold; /* Optional: Makes it stand out more */
-}
-      </style>
-   </head>
-   <body>
-      <h2>Enhanced Bet Slip App Instances</h2>
-      <input id="instance-name" type="text" placeholder="Enter instance name" />
-      <button onclick="promptInstanceName()">Create New Instance</button>
-      <div id="instances-container"></div>
-      <script>
-         let instances = [];
-         
-         function loadInstancesFromLocalStorage() {
-             const savedInstances = localStorage.getItem('betSlipInstances');
-             return savedInstances ? JSON.parse(savedInstances) : [];
-         }
-         
-         function saveInstancesToLocalStorage() {
-             localStorage.setItem('betSlipInstances', JSON.stringify(instances));
-         }
-         
-         function promptInstanceName() {
-             const instanceName = document.getElementById('instance-name').value.trim();
-             if (!instanceName) {
-                 alert('Please enter an instance name.');
-                 return;
-             }
-             createNewInstance(instanceName);
-         }
-         
-         function createNewInstance(instanceName) {
-             const instanceId = instanceName;
-             const instanceData = loadSavedData();
-         
-             instances.push({ id: instanceId, data: instanceData });
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function deleteInstance(instanceId) {
-             instances = instances.filter(instance => instance.id !== instanceId);
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function loadSavedData() {
-             return {
-                 odd: 2,
-                 initialUnits: [1, 2, 3],
-                 units: [1, 2, 3],
-                 stakedBet: {},
-                 expiredBetSlips: [],
-                 wonBetSlips: [],
-                 lostBetSlips: [],
-                 overAllProfit: 0,
-                 nextStake: 0
-             };
-         }
-         
-         function calculateNextStake(units, odd) {
-             let { first, last } = getFirstAndLastUnits(units);
-             return (first + last) / (odd - 1);
-         }
-         
-         function handleOutcome(instanceId, outcome) {
-             const instance = instances.find(inst => inst.id === instanceId);
-             const { units, stakedBet, wonBetSlips, lostBetSlips, odd } = instance.data;
-         
-             if (!stakedBet.stakedAmount) return alert("No bet staked");
-         
-             const currentTimestamp = new Date().toLocaleString();
-             stakedBet.timestamp = currentTimestamp;
-             stakedBet.outcome = outcome;
-         
-             if (outcome === "won") {
-                 units.shift();
-                 units.pop();
-                 wonBetSlips.push(stakedBet);
-             } else {
-                 units.push(stakedBet.stakedAmount);
-                 lostBetSlips.push(stakedBet);
-             }
-         
-             instance.data.expiredBetSlips.push(stakedBet);
-             instance.data.stakedBet = {};
-             instance.data.overAllProfit = calculateProfit(instance.data);
-             instance.data.nextStake = calculateNextStake(units, odd);
-         
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function stakeBet(instanceId) {
-             const instance = instances.find(inst => inst.id === instanceId);
-             const { odd, units } = instance.data;
-         
-             instance.data.stakedBet = {
-                 stakedAmount: calculateNextStake(units, odd),
-                 odd,
-                 outcome: "pending",
-                 timestamp: new Date().toLocaleString()
-             };
-         
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function calculateProfit(data) {
-             const totalStaked = sumStakes(data.wonBetSlips) + sumStakes(data.lostBetSlips);
-             const wonAmount = sumStakes(data.wonBetSlips) * data.odd;
-             return wonAmount - totalStaked;
-         }
-         
-         function sumStakes(bets) {
-             return bets.reduce((sum, bet) => sum + bet.stakedAmount, 0);
-         }
-         
-         function getFirstAndLastUnits(arr) {
-             return { first: arr[0] || 0, last: arr[arr.length - 1] || 0 };
-         }
-         
-         function setInitialValues(instanceId) {
-             const instance = instances.find(inst => inst.id === instanceId);
-             const initialUnitsInput = document.querySelector(`#${instanceId} .initial-units`);
-             const initialOddInput = document.querySelector(`#${instanceId} .initial-odd`);
-         
-             instance.data.initialUnits = initialUnitsInput.value.split(",").map(Number);
-             instance.data.units = [...instance.data.initialUnits];
-             instance.data.odd = parseFloat(initialOddInput.value) || 2;
-             instance.data.nextStake = calculateNextStake(instance.data.units, instance.data.odd);
-         
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function resetApp(instanceId) {
-             const instance = instances.find(inst => inst.id === instanceId);
-             instance.data = loadSavedData();
-         
-             saveInstancesToLocalStorage();
-             renderInstances();
-         }
-         
-         function showHistory(instanceId) {
-             const historyDiv = document.getElementById(`history-${instanceId}`);
-             const isHidden = historyDiv.style.display === "none";
-         
-             if (isHidden) {
-                 renderHistory(instanceId);
-                 historyDiv.style.display = "block";
-             } else {
-                 historyDiv.style.display = "none";
-             }
-         }
-         
-         function renderHistory(instanceId) {
-             const instance = instances.find(inst => inst.id === instanceId);
-             const historyDiv = document.getElementById(`history-${instanceId}`);
-             const { expiredBetSlips } = instance.data;
-         
-             let historyHTML = `<h4>History for Instance: ${instanceId}</h4>`;
-             historyHTML += `<h5>Expired Bets:</h5>`;
-             expiredBetSlips.forEach(bet => {
-                 const outcomeClass = bet.outcome === "won" ? "won" : "lost";
-                 historyHTML += `<div class="bet-item ${outcomeClass}"><p>Amount: ${bet.stakedAmount.toFixed(2)}, Outcome: ${bet.outcome}, Time: ${bet.timestamp}</p></div>`;
-             });
-         
-             historyDiv.innerHTML = historyHTML;
-         }
-         
-         function renderInstances() {
-         const container = document.getElementById('instances-container');
-         container.innerHTML = '';
-         
-         instances.forEach(instance => {
-         const { id, data } = instance;
-         const { units, nextStake, overAllProfit, odd } = data;
-         
-         const instanceHTML = `
-             <div class="wrapper" id="${id}">
-                 <h3>${id} Instance 
-                     <!-- Delete icon -->
-                     <i class="fas fa-trash-alt delete-icon" onclick="deleteInstance('${id}')" title="Delete Instance" style="cursor: pointer; color: crimson; float: right;"></i>
-                 </h3>
-                 <div>Units: <span id="units">${units.map(u => u.toFixed(2)).join(", ")}</span></div>
-                 <div>Next Stake Amount: <span id="next-stake-amount">${nextStake.toFixed(2)}</span></div>
-                 <div>Overall Profit: <span>${overAllProfit.toFixed(2)}</span></div>
-                 
-                 <div class="form-element">
-                     <label>Set Odd:</label>
-                     <input class="initial-odd" type="number" value="${odd}" />
-                 </div>
-                 
-                 <div class="form-element">
-                     <label>Set Initial Units (comma-separated):</label>
-                     <input class="initial-units" type="text" value="${units.map(u => u.toFixed(2)).join(",")}" />
-                 </div>
-                 
-                 <button onclick="setInitialValues('${id}')">Set Initial Values</button>
-                 <button onclick="resetApp('${id}')">Reset App</button>
-                 
-                 <div id="outcome-btns">
-                     <button id="won-btn" onclick="handleOutcome('${id}', 'won')">Won</button>
-                     <button id="lost-btn" onclick="handleOutcome('${id}', 'lost')">Lost</button>
-                 </div>
-                 
-                 <button onclick="stakeBet('${id}')">Stake Bet</button>
-         
-                 <div id="history-${id}" class="history"></div>
-                 <button onclick="showHistory('${id}')">Show History</button>
-             </div>
-         `;
-         
-         container.innerHTML += instanceHTML;
-         });
-         }
-         
-         
-         
-         document.addEventListener('DOMContentLoaded', () => {
-             instances = loadInstancesFromLocalStorage();
-             renderInstances();
-         });
-      </script>
-   </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap">
+<title>Bet Slip</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    --bg: #F3F5F9;
+    --surface: #FFFFFF;
+    --surface-raised: #EEF1F6;
+    --hair: #DEE3EA;
+    --hair-strong: #C7CFDA;
+    --ink: #1B222C;
+    --ink-dim: #5B6474;
+    --ink-faint: #8A93A3;
+    --amber: #A97B00;
+    --amber-dim: #FCEFC7;
+    --green: #1E8E4F;
+    --green-dim: #DDF3E6;
+    --red: #D6444E;
+    --red-dim: #FBE1E3;
+    --blue: #3D6FE0;
+    --radius-card: 18px;
+    --radius-ctl: 12px;
+    --tap: 50px;
+  }
+  html, body { height: 100%; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Space Grotesk', 'Segoe UI', system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .app { max-width: 430px; margin: 0 auto; padding: 18px 14px 40px; }
+
+  .app-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 2px 18px;
+  }
+  .app-header h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    margin: 0;
+  }
+  .app-header .mark { color: var(--amber); }
+
+  .new-instance {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .new-instance input {
+    flex: 1;
+    min-width: 0;
+    padding: 13px 14px;
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-ctl);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 0.95rem;
+  }
+  .new-instance input::placeholder { color: var(--ink-faint); }
+  .new-instance input:focus,
+  input:focus, button:focus, summary:focus {
+    outline: 2px solid var(--blue);
+    outline-offset: 2px;
+  }
+  .new-instance button {
+    flex-shrink: 0;
+    width: var(--tap);
+    height: var(--tap);
+    border-radius: var(--radius-ctl);
+    border: none;
+    background: var(--amber);
+    color: #1A1400;
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .new-instance button:active { transform: scale(0.96); }
+
+  .wrapper {
+    background: var(--surface);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-card);
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+
+  .card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px dashed var(--hair);
+  }
+  .card-head h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--ink);
+    text-transform: none;
+  }
+  .delete-icon {
+    color: var(--ink-faint);
+    cursor: pointer;
+    font-size: 0.95rem;
+    padding: 8px;
+    margin: -8px;
+    border-radius: 8px;
+    transition: color 0.15s ease, background-color 0.15s ease;
+  }
+  .delete-icon:hover, .delete-icon:active { color: var(--red); background: var(--red-dim); }
+
+  .readout { padding: 16px 16px 4px; }
+
+  .stat-label {
+    font-size: 0.72rem;
+    color: var(--ink-faint);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+  }
+
+  .units-row { margin-bottom: 14px; }
+  .units-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .unit-chip {
+    background: var(--surface-raised);
+    border: 1px solid var(--hair);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  .stake-profit-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .stat-block {
+    flex: 1;
+    background: var(--surface-raised);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-ctl);
+    padding: 10px 12px;
+  }
+  .stat-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+  .stat-value.stake { color: var(--blue); }
+  .stat-value.profit.pos { color: var(--green); }
+  .stat-value.profit.neg { color: var(--red); }
+  .stat-value.profit.zero { color: var(--ink-dim); }
+
+  .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 13px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .status-badge .dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .status-badge.staked { background: var(--amber-dim); color: var(--amber); }
+  .status-badge.staked .dot { background: var(--amber); box-shadow: 0 0 0 3px rgba(169, 123, 0, 0.18); animation: pulse-staked 1.4s infinite; }
+  .status-badge.not-staked { background: var(--surface-raised); color: var(--ink-dim); border: 1px solid var(--hair); }
+  .status-badge.not-staked .dot { background: var(--ink-faint); }
+  @keyframes pulse-staked {
+    0% { box-shadow: 0 0 0 0 rgba(169, 123, 0, 0.35); }
+    70% { box-shadow: 0 0 0 6px rgba(169, 123, 0, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(169, 123, 0, 0); }
+  }
+
+  .step-indicator { margin-bottom: 4px; }
+  .step-label { font-size: 0.72rem; color: var(--ink-faint); margin-bottom: 6px; }
+  .step-dots { display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+  .step-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--hair-strong); }
+  .step-dot.current { background: var(--blue); transform: scale(1.5); }
+  .step-dot.past { background: #9FB4E8; }
+
+  .undo-redo-row { display: flex; gap: 8px; }
+  .icon-btn {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 10px 8px;
+    background: var(--surface-raised);
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-ctl);
+    color: var(--ink-dim);
+    font-family: inherit;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  .icon-btn:active { transform: scale(0.97); }
+  .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  details.panel {
+    margin: 14px 16px 0;
+    border: 1px solid var(--hair);
+    border-radius: var(--radius-ctl);
+    background: var(--surface-raised);
+  }
+  details.panel summary {
+    list-style: none;
+    cursor: pointer;
+    padding: 12px 14px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--ink-dim);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  details.panel summary::-webkit-details-marker { display: none; }
+  details.panel summary .chev { transition: transform 0.15s ease; color: var(--ink-faint); }
+  details.panel[open] summary .chev { transform: rotate(180deg); }
+  .panel-body { padding: 2px 14px 14px; }
+
+  .form-element { margin-bottom: 10px; text-align: left; }
+  .form-element label {
+    display: block;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+    margin-bottom: 5px;
+  }
+  .form-element input {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 0.95rem;
+    border-radius: 10px;
+    border: 1px solid var(--hair);
+    background: var(--surface);
+    color: var(--ink);
+    font-family: inherit;
+  }
+  .panel-actions { display: flex; gap: 8px; margin-top: 12px; }
+  .panel-actions button {
+    flex: 1;
+    padding: 10px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: 1px solid var(--hair);
+    background: var(--surface);
+    color: var(--ink-dim);
+    font-family: inherit;
+    cursor: pointer;
+  }
+  .panel-actions button:active { transform: scale(0.97); }
+
+  .history { text-align: left; }
+  .history h4, .history h5 { display: none; }
+  .bet-item { padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; border: 1px solid var(--hair); }
+  .bet-item.won { border-left: 3px solid var(--green); }
+  .bet-item.lost { border-left: 3px solid var(--red); }
+  .bet-item p { margin: 0; font-size: 0.82rem; color: var(--ink-dim); }
+
+  .tear {
+    height: 0;
+    border-top: 1px dashed var(--hair);
+    margin: 16px 0 0;
+    position: relative;
+  }
+
+  .action-zone { padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+
+  .stake-btn {
+    width: 100%;
+    min-height: var(--tap);
+    border: none;
+    border-radius: var(--radius-ctl);
+    background: var(--amber);
+    color: #1A1400;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+  .stake-btn:active { transform: scale(0.985); }
+  .stake-btn:disabled { background: var(--surface-raised); color: var(--ink-faint); border: 1px solid var(--hair); cursor: not-allowed; }
+
+  .outcome-row { display: flex; gap: 10px; }
+  .outcome-row button {
+    flex: 1;
+    min-height: 62px;
+    border: none;
+    border-radius: var(--radius-ctl);
+    font-family: inherit;
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    color: white;
+  }
+  .won-btn { background: var(--green); }
+  .lost-btn { background: var(--red); }
+  .outcome-row button:active { transform: scale(0.97); }
+  .outcome-row button:disabled { background: var(--surface-raised); color: var(--ink-faint); cursor: not-allowed; }
+
+  .history-toggle-row { padding: 12px 16px 0; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="app-header">
+    <h1>Bet<span class="mark">Slip</span></h1>
+  </div>
+
+  <div class="new-instance">
+    <input id="instance-name" type="text" placeholder="New instance name" />
+    <button onclick="promptInstanceName()" aria-label="Create new instance">+</button>
+  </div>
+
+  <div id="instances-container"></div>
+</div>
+
+<script>
+   let instances = [];
+   const MAX_HISTORY = 50;
+
+   function loadInstancesFromLocalStorage() {
+       try {
+           const savedInstances = localStorage.getItem('betSlipInstances');
+           const parsed = savedInstances ? JSON.parse(savedInstances) : [];
+           parsed.forEach(inst => {
+               if (!Array.isArray(inst.history)) inst.history = [];
+               if (!Array.isArray(inst.future)) inst.future = [];
+           });
+           return parsed;
+       } catch (e) {
+           console.error('Failed to load instances:', e);
+           return [];
+       }
+   }
+
+   function saveInstancesToLocalStorage() {
+       try {
+           localStorage.setItem('betSlipInstances', JSON.stringify(instances));
+       } catch (e) {
+           console.error('Failed to save instances:', e);
+       }
+   }
+
+   function promptInstanceName() {
+       const instanceName = document.getElementById('instance-name').value.trim();
+       if (!instanceName) {
+           alert('Please enter an instance name.');
+           return;
+       }
+       createNewInstance(instanceName);
+   }
+
+   function createNewInstance(instanceName) {
+       const instanceId = instanceName;
+       const instanceData = loadSavedData();
+
+       instances.push({ id: instanceId, data: instanceData, history: [], future: [] });
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function deleteInstance(instanceId) {
+       instances = instances.filter(instance => instance.id !== instanceId);
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function loadSavedData() {
+       return {
+           odd: 2,
+           initialUnits: [1, 2, 3],
+           units: [1, 2, 3],
+           stakedBet: {},
+           expiredBetSlips: [],
+           wonBetSlips: [],
+           lostBetSlips: [],
+           overAllProfit: 0,
+           nextStake: 0
+       };
+   }
+
+   // Deep-clones just the fields that make up an instance's bet-tracking state,
+   // so we can snapshot it onto the undo stack.
+   function cloneState(data) {
+       return JSON.parse(JSON.stringify(data));
+   }
+
+   // Call this BEFORE mutating instance.data for a Won/Lost outcome. Pushes the
+   // current state onto the undo stack and clears the redo stack.
+   function pushHistory(instance) {
+       instance.history.push(cloneState(instance.data));
+       if (instance.history.length > MAX_HISTORY) instance.history.shift();
+       instance.future = [];
+   }
+
+   function undoInstance(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       if (!instance || instance.history.length === 0) return;
+
+       instance.future.push(cloneState(instance.data));
+       instance.data = instance.history.pop();
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function redoInstance(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       if (!instance || instance.future.length === 0) return;
+
+       instance.history.push(cloneState(instance.data));
+       instance.data = instance.future.pop();
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function calculateNextStake(units, odd) {
+       let { first, last } = getFirstAndLastUnits(units);
+       return (first + last) / (odd - 1);
+   }
+
+   function handleOutcome(instanceId, outcome) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       if (!instance.data.stakedBet.stakedAmount) return alert("No bet staked");
+
+       pushHistory(instance);
+
+       const { units, stakedBet, wonBetSlips, lostBetSlips, odd } = instance.data;
+
+       const currentTimestamp = new Date().toLocaleString();
+       stakedBet.timestamp = currentTimestamp;
+       stakedBet.outcome = outcome;
+
+       if (outcome === "won") {
+           units.shift();
+           units.pop();
+           wonBetSlips.push(stakedBet);
+       } else {
+           units.push(stakedBet.stakedAmount);
+           lostBetSlips.push(stakedBet);
+       }
+
+       instance.data.expiredBetSlips.push(stakedBet);
+       instance.data.stakedBet = {};
+       instance.data.overAllProfit = calculateProfit(instance.data);
+       instance.data.nextStake = calculateNextStake(units, odd);
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function stakeBet(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       const { odd, units } = instance.data;
+
+       instance.data.stakedBet = {
+           stakedAmount: calculateNextStake(units, odd),
+           odd,
+           outcome: "pending",
+           timestamp: new Date().toLocaleString()
+       };
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function calculateProfit(data) {
+       const totalStaked = sumStakes(data.wonBetSlips) + sumStakes(data.lostBetSlips);
+       const wonAmount = sumStakes(data.wonBetSlips) * data.odd;
+       return wonAmount - totalStaked;
+   }
+
+   function sumStakes(bets) {
+       return bets.reduce((sum, bet) => sum + bet.stakedAmount, 0);
+   }
+
+   function getFirstAndLastUnits(arr) {
+       return { first: arr[0] || 0, last: arr[arr.length - 1] || 0 };
+   }
+
+   function setInitialValues(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       const initialUnitsInput = document.querySelector(`#${CSS.escape(instanceId)} .initial-units`);
+       const initialOddInput = document.querySelector(`#${CSS.escape(instanceId)} .initial-odd`);
+
+       instance.data.initialUnits = initialUnitsInput.value.split(",").map(Number);
+       instance.data.units = [...instance.data.initialUnits];
+       instance.data.odd = parseFloat(initialOddInput.value) || 2;
+       instance.data.nextStake = calculateNextStake(instance.data.units, instance.data.odd);
+       // A new baseline is being set, so old Won/Lost undo steps no longer apply.
+       instance.history = [];
+       instance.future = [];
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function resetApp(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+
+       instance.data = loadSavedData();
+       // A fresh instance shouldn't carry undo/redo steps from before the reset.
+       instance.history = [];
+       instance.future = [];
+
+       saveInstancesToLocalStorage();
+       renderInstances();
+   }
+
+   function showHistory(instanceId) {
+       const historyDiv = document.getElementById(`history-${instanceId}`);
+       const isHidden = historyDiv.style.display === "none" || !historyDiv.style.display;
+
+       if (isHidden) {
+           renderHistory(instanceId);
+           historyDiv.style.display = "block";
+       } else {
+           historyDiv.style.display = "none";
+       }
+   }
+
+   function renderHistory(instanceId) {
+       const instance = instances.find(inst => inst.id === instanceId);
+       const historyDiv = document.getElementById(`history-${instanceId}`);
+       const { expiredBetSlips } = instance.data;
+
+       if (expiredBetSlips.length === 0) {
+           historyDiv.innerHTML = `<p style="font-size:0.82rem;color:var(--ink-faint);margin:0;">No settled bets yet.</p>`;
+           return;
+       }
+
+       let historyHTML = '';
+       expiredBetSlips.slice().reverse().forEach(bet => {
+           const outcomeClass = bet.outcome === "won" ? "won" : "lost";
+           const outcomeLabel = bet.outcome === "won" ? "Won" : "Lost";
+           historyHTML += `<div class="bet-item ${outcomeClass}"><p>${outcomeLabel} &middot; ${bet.stakedAmount.toFixed(2)} &middot; ${bet.timestamp}</p></div>`;
+       });
+
+       historyDiv.innerHTML = historyHTML;
+   }
+
+   // Shows a pulsing "Staked" badge with the staked amount, or a plain
+   // "Not Staked" badge when the instance has no pending bet.
+   function renderStakeBadge(instance) {
+       const staked = instance.data.stakedBet && instance.data.stakedBet.stakedAmount;
+       if (staked) {
+           return `
+               <div class="status-badge staked">
+                   <span class="dot"></span>
+                   Staked &mdash; ${instance.data.stakedBet.stakedAmount.toFixed(2)}
+               </div>
+           `;
+       }
+       return `
+           <div class="status-badge not-staked">
+               <span class="dot"></span>
+               Not Staked
+           </div>
+       `;
+   }
+
+   // Builds the "Step X of Y" label plus a row of dots marking where the
+   // current state sits between the undo history and the redo future.
+   function renderStepIndicator(instance) {
+       const total = instance.history.length + instance.future.length + 1;
+       const currentStep = instance.history.length + 1; // 1-indexed position
+
+       let dotsHTML = '';
+       const MAX_DOTS = 25;
+       if (total <= MAX_DOTS) {
+           for (let i = 1; i <= total; i++) {
+               let cls = 'step-dot';
+               if (i === currentStep) cls += ' current';
+               else if (i < currentStep) cls += ' past';
+               dotsHTML += `<span class="${cls}" title="Step ${i} of ${total}"></span>`;
+           }
+       }
+
+       return `
+           <div class="step-indicator">
+               <div class="step-label">Step ${currentStep} of ${total}</div>
+               ${dotsHTML ? `<div class="step-dots">${dotsHTML}</div>` : ''}
+           </div>
+       `;
+   }
+
+   function renderInstances() {
+   const container = document.getElementById('instances-container');
+   container.innerHTML = '';
+
+   instances.forEach(instance => {
+   const { id, data, history, future } = instance;
+   const { units, nextStake, overAllProfit, odd } = data;
+   const undoDisabled = history.length === 0 ? 'disabled' : '';
+   const redoDisabled = future.length === 0 ? 'disabled' : '';
+   const isStaked = !!(data.stakedBet && data.stakedBet.stakedAmount);
+   const stakeBtnDisabled = isStaked ? 'disabled' : '';
+   const outcomeBtnsDisabled = isStaked ? '' : 'disabled';
+   const profitClass = overAllProfit > 0 ? 'pos' : (overAllProfit < 0 ? 'neg' : 'zero');
+
+   const instanceHTML = `
+       <div class="wrapper" id="${id}">
+           <div class="card-head">
+               <h3>${id}</h3>
+               <i class="delete-icon" onclick="deleteInstance('${id}')" title="Delete instance" aria-label="Delete instance">&#10005;</i>
+           </div>
+
+           <div class="readout">
+               <div class="units-row">
+                   <div class="stat-label">Units</div>
+                   <div class="units-chips">
+                       ${units.map(u => `<span class="unit-chip">${u.toFixed(2)}</span>`).join('')}
+                   </div>
+               </div>
+
+               <div class="stake-profit-row">
+                   <div class="stat-block">
+                       <div class="stat-label">Next Stake</div>
+                       <div class="stat-value stake">${nextStake.toFixed(2)}</div>
+                   </div>
+                   <div class="stat-block">
+                       <div class="stat-label">Profit</div>
+                       <div class="stat-value profit ${profitClass}">${overAllProfit.toFixed(2)}</div>
+                   </div>
+               </div>
+           </div>
+
+           <details class="panel">
+               <summary>Settings <span class="chev">&#9662;</span></summary>
+               <div class="panel-body">
+                   <div class="form-element">
+                       <label>Odd</label>
+                       <input class="initial-odd" type="number" value="${odd}" />
+                   </div>
+                   <div class="form-element">
+                       <label>Initial units (comma-separated)</label>
+                       <input class="initial-units" type="text" value="${units.map(u => u.toFixed(2)).join(",")}" />
+                   </div>
+                   <div class="panel-actions">
+                       <button onclick="setInitialValues('${id}')">Set Values</button>
+                       <button onclick="resetApp('${id}')">Reset</button>
+                   </div>
+               </div>
+           </details>
+
+           <details class="panel" ontoggle="if(this.open) renderHistory('${id}')">
+               <summary>History <span class="chev">&#9662;</span></summary>
+               <div class="panel-body">
+                   <div id="history-${id}" class="history" style="display:block;"></div>
+               </div>
+           </details>
+
+           <div class="tear"></div>
+
+           <div class="action-zone">
+               <div class="undo-redo-row">
+                   <button class="icon-btn" onclick="undoInstance('${id}')" ${undoDisabled}>&#8630; Undo</button>
+                   <button class="icon-btn" onclick="redoInstance('${id}')" ${redoDisabled}>Redo &#8631;</button>
+               </div>
+               <button class="stake-btn" onclick="stakeBet('${id}')" ${stakeBtnDisabled}>Stake Bet</button>
+               <div class="outcome-row">
+                   <button class="won-btn" onclick="handleOutcome('${id}', 'won')" ${outcomeBtnsDisabled}>Won</button>
+                   <button class="lost-btn" onclick="handleOutcome('${id}', 'lost')" ${outcomeBtnsDisabled}>Lost</button>
+               </div>
+               ${renderStakeBadge(instance)}
+               ${renderStepIndicator(instance)}
+           </div>
+       </div>
+   `;
+
+   container.innerHTML += instanceHTML;
+   });
+   }
+
+   document.addEventListener('DOMContentLoaded', () => {
+       instances = loadInstancesFromLocalStorage();
+       renderInstances();
+   });
+</script>
+</body>
 </html>
